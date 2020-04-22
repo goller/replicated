@@ -1,6 +1,8 @@
 package kotsclient
 
 import (
+	"time"
+
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/replicated/pkg/graphql"
 	"github.com/replicatedhq/replicated/pkg/types"
@@ -12,10 +14,21 @@ const kotsListCustomers = `
             customers {
 		        id
 		        name
+				createdAt
+				expiresAt
+				isArchived
+				type
+				shipInstallStatus {
+					status
+				}
 		        channels {
 		            id
 		            name
+					description
 		            currentVersion
+					created
+					updated
+					releaseSequence
 		        }
             }
         }
@@ -32,18 +45,35 @@ type CustomerDataWrapper struct {
 }
 
 type CustomerData struct {
-	Customers []*Customer `json:"customers"`
+	Customers []Customer `json:"customers"`
+}
+
+type ShipInstallStatus struct {
+	Status string `json:"status"`
+}
+
+type Channel struct {
+	ID              string    `json:"id"`
+	Name            string    `json:"name"`
+	Description     string    `json:"description"`
+	CurrentVersion  string    `json:"currentVersion"`
+	Created         time.Time `json:"created"`
+	Updated         time.Time `json:"updated"`
+	ReleaseSequence int64     `json:"releaseSequence"`
 }
 
 type Customer struct {
-	ID        string         `json:"id"`
-	Name      string         `json:"name"`
-	Channels  []*KotsChannel `json:"channels"`
-	Type      string         `json:"type"`
-	ExpiresAt string         `json:"expiresAt"`
+	ID                string            `json:"id"`
+	Name              string            `json:"name"`
+	Channels          []Channel         `json:"channels"`
+	Type              string            `json:"type"`
+	IsArchived        bool              `json:"isArchived"`
+	CreatedAt         time.Time         `json:"createdAt"`
+	ExpiresAt         time.Time         `json:"expiresAt"`
+	ShipInstallStatus ShipInstallStatus `json:"shipInstallStatus"`
 }
 
-func (c *GraphQLClient) ListCustomers(appID string) ([]types.Customer, error) {
+func (c *GraphQLClient) Customers(appID string) ([]Customer, error) {
 	response := GraphQLResponseListCustomers{}
 
 	request := graphql.Request{
@@ -59,8 +89,17 @@ func (c *GraphQLClient) ListCustomers(appID string) ([]types.Customer, error) {
 		return nil, errors.Wrap(err, "execute gql request")
 	}
 
+	return response.Data.Customers.Customers, nil
+}
+
+func (c *GraphQLClient) ListCustomers(appID string) ([]types.Customer, error) {
+	cs, err := c.Customers(appID)
+	if err != nil {
+		return nil, err
+	}
+
 	customers := make([]types.Customer, 0, 0)
-	for _, kotsCustomer := range response.Data.Customers.Customers {
+	for _, kotsCustomer := range cs {
 
 		kotsChannels := make([]types.Channel, 0, 0)
 		for _, kotsChannel := range kotsCustomer.Channels {
@@ -72,15 +111,12 @@ func (c *GraphQLClient) ListCustomers(appID string) ([]types.Customer, error) {
 			}
 			kotsChannels = append(kotsChannels, channel)
 		}
-		customer, err := types.Customer{
+		customer := types.Customer{
 			ID:       kotsCustomer.ID,
 			Name:     kotsCustomer.Name,
 			Type:     kotsCustomer.Type,
 			Channels: kotsChannels,
-		}.WithExpiryTime(kotsCustomer.ExpiresAt)
-
-		if err != nil {
-			return nil, errors.Wrapf(err, "set expiry time for customer %q", kotsCustomer.ID)
+			Expires:  &kotsCustomer.ExpiresAt,
 		}
 
 		customers = append(customers, customer)

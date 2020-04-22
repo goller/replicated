@@ -1,10 +1,11 @@
 package kotsclient
 
 import (
+	"time"
+
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/replicated/pkg/graphql"
 	"github.com/replicatedhq/replicated/pkg/types"
-	"time"
 )
 
 const kotsCreateCustomer = `
@@ -46,14 +47,11 @@ func (c *GraphQLClient) CreateCustomer(name, channel string, expiresIn time.Dura
 		return nil, errors.Wrap(err, "execute gql request")
 	}
 
-	customer, err := types.Customer{
-		ID:   response.Data.Customer.ID,
-		Name: response.Data.Customer.Name,
-		Type: response.Data.Customer.Type,
-	}.WithExpiryTime(response.Data.Customer.ExpiresAt)
-
-	if err != nil {
-		return nil, errors.Wrap(err, "set expiry time")
+	customer := types.Customer{
+		ID:      response.Data.Customer.ID,
+		Name:    response.Data.Customer.Name,
+		Type:    response.Data.Customer.Type,
+		Expires: &response.Data.Customer.ExpiresAt,
 	}
 
 	return &customer, nil
