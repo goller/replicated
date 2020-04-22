@@ -35,6 +35,31 @@ const kotsListCustomers = `
 	}
 	`
 
+const kotsListCustomer = `
+    query customers($appId: String, $appType: String, $customerName: String) {
+		customers(appId: $appId, appType: $appType, customerName: $customerName) {
+            customers {
+		        id
+		        name
+				createdAt
+				expiresAt
+				isArchived
+				type
+				shipInstallStatus {
+					status
+				}
+		        channels {
+		            id
+		            name
+					description
+		            currentVersion
+					releaseSequence
+		        }
+            }
+        }
+	}
+	`
+
 type GraphQLResponseListCustomers struct {
 	Data   *CustomerDataWrapper `json:"data,omitempty"`
 	Errors []graphql.GQLError   `json:"errors,omitempty"`
@@ -82,6 +107,26 @@ func (c *GraphQLClient) Customers(appID string) ([]Customer, error) {
 		Variables: map[string]interface{}{
 			"appId":   appID,
 			"appType": "kots",
+		},
+	}
+
+	if err := c.ExecuteRequest(request, &response); err != nil {
+		return nil, errors.Wrap(err, "execute gql request")
+	}
+
+	return response.Data.Customers.Customers, nil
+}
+
+func (c *GraphQLClient) Customer(appID, name string) ([]Customer, error) {
+	response := GraphQLResponseListCustomers{}
+
+	request := graphql.Request{
+		Query: kotsListCustomer,
+
+		Variables: map[string]interface{}{
+			"appId":        appID,
+			"appType":      "kots",
+			"customerName": name,
 		},
 	}
 
