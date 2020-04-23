@@ -48,11 +48,17 @@ func (c *GraphQLClient) CreateCustomer(name, channel string, expiresIn time.Dura
 	}
 
 	customer := types.Customer{
-		ID:      response.Data.Customer.ID,
-		Name:    response.Data.Customer.Name,
-		Type:    response.Data.Customer.Type,
-		Expires: &response.Data.Customer.ExpiresAt,
+		ID:   response.Data.Customer.ID,
+		Name: response.Data.Customer.Name,
+		Type: response.Data.Customer.Type,
 	}
 
+	if response.Data.Customer.ExpiresAt != nil {
+		tm, err := time.Parse(time.RFC3339, *response.Data.Customer.ExpiresAt)
+		if err != nil {
+			return nil, err
+		}
+		customer.Expires = &tm
+	}
 	return &customer, nil
 }

@@ -78,13 +78,13 @@ type ShipInstallStatus struct {
 }
 
 type Channel struct {
-	ID              string    `json:"id"`
-	Name            string    `json:"name"`
-	Description     string    `json:"description"`
-	CurrentVersion  string    `json:"currentVersion"`
-	Created         time.Time `json:"created"`
-	Updated         time.Time `json:"updated"`
-	ReleaseSequence int64     `json:"releaseSequence"`
+	ID              string  `json:"id"`
+	Name            string  `json:"name"`
+	Description     string  `json:"description"`
+	CurrentVersion  string  `json:"currentVersion"`
+	Created         *string `json:"created,omitempty"`
+	Updated         *string `json:"updated,omitempty"`
+	ReleaseSequence int64   `json:"releaseSequence"`
 }
 
 type Customer struct {
@@ -93,8 +93,8 @@ type Customer struct {
 	Channels          []Channel         `json:"channels"`
 	Type              string            `json:"type"`
 	IsArchived        bool              `json:"isArchived"`
-	CreatedAt         time.Time         `json:"createdAt"`
-	ExpiresAt         time.Time         `json:"expiresAt"`
+	CreatedAt         *string           `json:"createdAt,omitempty"`
+	ExpiresAt         *string           `json:"expiresAt,omitempty"`
 	ShipInstallStatus ShipInstallStatus `json:"shipInstallStatus"`
 }
 
@@ -161,7 +161,14 @@ func (c *GraphQLClient) ListCustomers(appID string) ([]types.Customer, error) {
 			Name:     kotsCustomer.Name,
 			Type:     kotsCustomer.Type,
 			Channels: kotsChannels,
-			Expires:  &kotsCustomer.ExpiresAt,
+		}
+
+		if kotsCustomer.ExpiresAt != nil {
+			tm, err := time.Parse(time.RFC3339, *kotsCustomer.ExpiresAt)
+			if err != nil {
+				return nil, err
+			}
+			customer.Expires = &tm
 		}
 
 		customers = append(customers, customer)
